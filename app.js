@@ -1,10 +1,20 @@
+require("dotenv").config();
 const express = require("express");
+const mongoose = require("mongoose");
+
 const app = express();
-const dotenv = require("dotenv");
+app.use(express.json());
 
-// Setting up config.env file variable
-dotenv.config({ path: "./config/config.env" });
+// Importing all routes
+const jobs = require("./router/jobs");
 
-app.listen(process.env.PORT, () => {
-  console.log("Server started");
-});
+app.use("/api/v1", jobs);
+
+/******* Database Connection ********************/
+mongoose
+  .connect(process.env.DATABASE_URL)
+  .then(() => {
+    app.listen(8080);
+    console.log("server connected");
+  })
+  .catch((err) => console.log(err));
