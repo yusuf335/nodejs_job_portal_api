@@ -1,9 +1,11 @@
 const Job = require("../models/jobs");
-
+const ErrorHandler = require("../utils/errorHandler");
+const catchAsyncErrors = require("../middlewares/catchAsyncErrors");
 const geoCoder = require("../utils/geocoder");
+const APIFilters = require("../utils/apiFilters");
 
 // Create new job => /api/v1/job/new
-exports.newJobHandler = async (req, res, next) => {
+exports.newJobHandler = catchAsyncErrors(async (req, res, next) => {
   const job = await Job.create(req.body);
 
   res.status(200).json({
@@ -11,21 +13,22 @@ exports.newJobHandler = async (req, res, next) => {
     message: "Job creates",
     data: job,
   });
-};
+});
 
 // Get all jobs => /api/v1/jobs
-exports.getJobsHandler = async (req, res, next) => {
-  const jobs = await Job.find();
+exports.getJobsHandler = catchAsyncErrors(async (req, res, next) => {
+  const apiFilters = new APIFilters(Job.find(), req.query).filter().sort();
+  const jobs = await apiFilters.query;
 
   res.status(200).json({
     success: true,
     message: "Job List",
     data: jobs,
   });
-};
+});
 
 // Search jobs with radius => /api/v1/jobs/:zipcode/:distance
-exports.searchJobsInRadiusHandler = async (req, res, next) => {
+exports.searchJobsInRadiusHandler = catchAsyncErrors(async (req, res, next) => {
   const { zipcode, distance } = req.params;
 
   // Get latitude & longitude from geocoder with zipcode
@@ -47,19 +50,16 @@ exports.searchJobsInRadiusHandler = async (req, res, next) => {
     message: "Filtered Job list",
     data: job,
   });
-};
+});
 
 // Get a job with id and slug => /api/v1/job/:id/:slug
-exports.getJobByIdandSlugHandler = async (req, res, next) => {
+exports.getJobByIdandSlugHandler = catchAsyncErrors(async (req, res, next) => {
   const job = await Job.find({
     $and: [{ _id: req.params.id }, { slug: req.params.slug }],
   });
 
   if (!job || job.length === 0) {
-    return res.status(404).json({
-      success: false,
-      message: "Job not found",
-    });
+    return next(new ErrorHandler("Job not found", 404));
   }
 
   res.status(200).json({
@@ -67,17 +67,14 @@ exports.getJobByIdandSlugHandler = async (req, res, next) => {
     message: "Job found!",
     data: job,
   });
-};
+});
 
 // Update a job => /api/v1/job/:id
-exports.updateJobHandler = async (req, res, next) => {
+exports.updateJobHandler = catchAsyncErrors(async (req, res, next) => {
   const job = await Job.findById(req.params.id);
 
   if (!job) {
-    res.status(404).json({
-      success: false,
-      message: "Job not found",
-    });
+    return next(new ErrorHandler("Job not found", 404));
   }
 
   job = await Job.findByIdAndUpdate(req.params.id, req.body, {
@@ -90,17 +87,14 @@ exports.updateJobHandler = async (req, res, next) => {
     message: "Job Updated",
     data: job,
   });
-};
+});
 
 // Delete a job => /api/v1/job/:id
-exports.deleteJobHandler = async (req, res, next) => {
+exports.deleteJobHandler = catchAsyncErrors(async (req, res, next) => {
   const job = await Job.findById(req.params.id);
 
   if (!job) {
-    return res.status(404).json({
-      success: false,
-      message: "Job not found",
-    });
+    return next(new ErrorHandler("Job not found", 404));
   }
 
   await Job.findByIdAndDelete(req.params.id);
@@ -109,10 +103,10 @@ exports.deleteJobHandler = async (req, res, next) => {
     success: true,
     message: "Job is Deleted!",
   });
-};
+});
 
 // Get job stats by topic => /api/v1/jobs-stats/:topic
-exports.jobStatsHandler = async (req, res, next) => {
+exports.jobStatsHandler = catchAsyncErrors(async (req, res, next) => {
   try {
     const stats = await Job.aggregate([
       {
@@ -131,10 +125,9 @@ exports.jobStatsHandler = async (req, res, next) => {
     ]);
 
     if (stats.length === 0) {
-      return res.status(200).json({
-        success: false,
-        message: `No stats found for - ${req.params.topic}`,
-      });
+      return next(
+        new ErrorHandler(`No stats found for - ${req.params.topic}`, 200)
+      );
     }
 
     res.status(200).json({
@@ -144,4 +137,4 @@ exports.jobStatsHandler = async (req, res, next) => {
   } catch (err) {
     console.log(err);
   }
-};
+});
