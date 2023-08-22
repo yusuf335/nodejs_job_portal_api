@@ -17,7 +17,12 @@ exports.newJobHandler = catchAsyncErrors(async (req, res, next) => {
 
 // Get all jobs => /api/v1/jobs
 exports.getJobsHandler = catchAsyncErrors(async (req, res, next) => {
-  const apiFilters = new APIFilters(Job.find(), req.query).filter().sort();
+  const apiFilters = new APIFilters(Job.find(), req.query)
+    .filter()
+    .sort()
+    .limitFields()
+    .searchByQuery()
+    .pagination();
   const jobs = await apiFilters.query;
 
   res.status(200).json({
